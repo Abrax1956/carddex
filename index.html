@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CardDex</title>
+
+<style>
+:root{
+  --bg: #060c18;
+  --card: rgba(255,255,255,0.04);
+  --glass: rgba(255,255,255,0.06);
+  --accent: #4ee1a3;
+  --red: #ff6b6b;
+  --text: #e6eef6;
+  --muted:#9aa4b2;
+}
+
+body{
+  margin:0;
+  background: radial-gradient(circle at top, #0a1a30, #050b16);
+  color:var(--text);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.app{
+  max-width:600px;
+  margin:auto;
+  padding:18px;
+}
+
+/* DASHBOARD */
+.dashboard{
+  padding:24px;
+  border-radius:20px;
+  background: linear-gradient(180deg, rgba(20,40,80,0.6), rgba(5,10,20,0.6));
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  margin-bottom:18px;
+  text-align:center;
+}
+
+.total{
+  font-size:44px;
+  font-weight:800;
+  letter-spacing:1px;
+  margin-top:8px;
+}
+
+.muted{
+  color:var(--muted);
+  font-size:13px;
+}
+
+/* GRID */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+/* CARD */
+.card{
+  background: var(--card);
+  backdrop-filter: blur(10px);
+  border-radius:16px;
+  padding:12px;
+  display:flex;
+  gap:12px;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+
+.card:hover{
+  transform: translateY(-4px) scale(1.02);
+}
+
+/* FLASH */
+.card.flash-up{background:rgba(78,225,163,0.12)}
+.card.flash-down{background:rgba(255,107,107,0.12)}
+
+img{
+  width:60px;
+  border-radius:10px;
+}
+
+/* VALUE */
+.value{
+  font-size:16px;
+  font-weight:700;
+  transition: transform .2s;
+}
+.value.bump{transform:scale(1.1)}
+
+.green{color:var(--accent)}
+.red{color:var(--red)}
+
+.graph{
+  display:flex;
+  gap:3px;
+  margin-top:6px;
+}
+.bar{
+  width:6px;
+  border-radius:2px;
+  background:var(--accent);
+}
+
+/* BUTTONS */
+button{
+  border:none;
+  padding:6px 10px;
+  border-radius:8px;
+  font-size:12px;
+  transition:.2s;
+}
+
+.buy{
+  background:linear-gradient(90deg,#4ee1a3,#22c1a4);
+  color:#042022;
+}
+.sell{
+  background:linear-gradient(90deg,#ff6b6b,#ff3b3b);
+  color:white;
+}
+
+button:active{
+  transform:scale(0.95);
+}
+
+/* EMPTY */
+.empty{
+  text-align:center;
+  padding:60px 20px;
+  background:var(--card);
+  border-radius:16px;
+  line-height:1.7;
+  backdrop-filter: blur(10px);
+}
+
+/* TOAST */
+.toast{
+  position:fixed;
+  bottom:90px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:12px 20px;
+  border-radius:10px;
+  background:var(--card);
+  backdrop-filter: blur(10px);
+  animation:fade 2s forwards;
+}
+.toast.green{color:var(--accent)}
+
+@keyframes fade{
+  0%{opacity:0;transform:translate(-50%,10px)}
+  20%{opacity:1}
+  80%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-10px)}
+}
+
+/* FAB */
+.add{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  font-size:28px;
+  background:linear-gradient(135deg,#4ee1a3,#22c1a4);
+  color:#042022;
+  box-shadow:0 10px 30px rgba(0,0,0,0.6);
+}
+
+/* SELECTOR */
+.selector{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#081426;
+  padding:16px;
+  display:none;
+  max-height:70%;
+  overflow:auto;
+  border-top-left-radius:20px;
+  border-top-right-radius:20px;
+}
+.selector-item{
+  display:flex;
+  gap:12px;
+  padding:10px;
+  border-radius:12px;
+}
+.selector-item:hover{
+  background:rgba(255,255,255,0.05);
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="dashboard">
+  <div id="sessionInfo"></div>
+  <div class="muted">Total Value</div>
+  <div id="totalValue" class="total">€0</div>
+  <div id="goal"></div>
+  <div id="summary"></div>
+</div>
+
+<div id="grid" class="grid"></div>
+
+</div>
+
+<button class="add" onclick="openSelector()">+</button>
+
+<div id="selector" class="selector">
+  <input placeholder="Search..." oninput="filterCards(this.value)">
+  <div id="cardList"></div>
+</div>
+
+<script>
+/* ⚠️ ALL YOUR ORIGINAL LOGIC — UNCHANGED */
+const KEY="carddex";
+const LAST="carddex_last";
+let collection=[];
+
+function save(){localStorage.setItem(KEY,JSON.stringify(collection))}
+function load(){const d=localStorage.getItem(KEY);if(d)collection=JSON.parse(d)}
+
+const db=[
+{ name:"Charizard GX", rarity:"Secret Rare", value:950, img:"https://images.pokemontcg.io/sm115/SM115.png"},
+{ name:"Pikachu VMAX", rarity:"Rare", value:420, img:"https://images.pokemontcg.io/swsh4/188.png"},
+{ name:"Umbreon VMAX", rarity:"Alternate Art", value:780, img:"https://images.pokemontcg.io/swsh7/215.png"},
+{ name:"Rayquaza EX", rarity:"Ultra Rare", value:350, img:"https://images.pokemontcg.io/ex7/97.png"},
+{ name:"Mewtwo GX", rarity:"Ultra Rare", value:210, img:"https://images.pokemontcg.io/sm35/39.png"}
+];
+
+function showToast(msg){
+  const t=document.createElement("div");
+  t.className="toast green";
+  t.innerText=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2000);
+}
+
+function addCard(c){
+  collection.push({
+    ...c,
+    qty:1,
+    purchase:c.value,
+    current:c.value,
+    history:[c.value],
+    lastChange:0,
+    lastPct:0
+  });
+  save();
+  render();
+  showToast(`Added ${c.name}`);
+}
+
+function updateMarket(){
+  setInterval(()=>{
+    collection.forEach(c=>{
+      const change=(Math.random()*0.02)-0.01;
+      const old=c.current;
+      c.current=Math.round(c.current*(1+change));
+      c.lastChange=c.current-old;
+      c.lastPct=((c.current-old)/old)*100;
+      c.history.push(c.current);
+      if(c.history.length>5)c.history.shift();
+    });
+    render();
+    save();
+  },4000);
+}
+
+function graph(c){
+  const min=Math.min(...c.history);
+  const max=Math.max(...c.history);
+  return `<div class="graph">${
+    c.history.map(v=>{
+      const h=max===min?10:((v-min)/(max-min))*30+5;
+      return `<div class="bar" style="height:${h}px"></div>`;
+    }).join("")
+  }</div>`;
+}
+
+function render(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+
+  if(collection.length===0){
+    grid.innerHTML=`
+      <div class="empty">
+        Tap + to start building your collection<br>
+        Track value, profit and trends in real time
+      </div>`;
+    updateDashboard(0,null,null);
+    return;
+  }
+
+  let total=0,best=null,worst=null;
+
+  collection.forEach((c,i)=>{
+    const value=c.current*c.qty;
+    const pct=((c.current-c.purchase)/c.purchase)*100;
+
+    total+=value;
+    if(!best||pct>best.pct) best={name:c.name,pct};
+    if(!worst||pct<worst.pct) worst={name:c.name,pct};
+
+    const el=document.createElement("div");
+    el.className="card";
+
+    if(c.lastChange>0){el.classList.add("flash-up");setTimeout(()=>el.classList.remove("flash-up"),300);}
+    if(c.lastChange<0){el.classList.add("flash-down");setTimeout(()=>el.classList.remove("flash-down"),300);}
+
+    el.innerHTML=`
+      <img src="${c.img}">
+      <div>
+        <div style="font-weight:600">${c.name}</div>
+        <div class="muted">€${value} (${c.qty}x)</div>
+
+        <div class="value ${pct>=0?'green':'red'}">
+          ${pct>=0?'+':''}${pct.toFixed(1)}%
+        </div>
+
+        <div class="muted ${c.lastChange>=0?'green':'red'}">
+          ${c.lastPct.toFixed(1)}%
+        </div>
+
+        ${graph(c)}
+
+        <button class="buy" onclick="buy(${i})">Buy</button>
+        <button class="sell" onclick="sell(${i})">Sell</button>
+      </div>
+    `;
+
+    if(c.lastChange!==0){
+      setTimeout(()=>{
+        const v=el.querySelector(".value");
+        v.classList.add("bump");
+        setTimeout(()=>v.classList.remove("bump"),200);
+      },0);
+    }
+
+    grid.appendChild(el);
+  });
+
+  updateDashboard(total,best,worst);
+}
+
+function updateDashboard(total,best,worst){
+  document.getElementById("totalValue").innerText="€"+total;
+
+  const last=parseFloat(localStorage.getItem(LAST)||total);
+  const diff=total-last;
+
+  document.getElementById("sessionInfo").innerHTML=
+    collection.length===0?"":`You ${diff>=0?'gained':'lost'} €${Math.abs(diff)}`;
+
+  localStorage.setItem(LAST,total);
+
+  document.getElementById("summary").innerHTML=
+    best&&worst?`Best: ${best.name} (+${best.pct.toFixed(1)}%)<br>
+    Worst: ${worst.name} (${worst.pct.toFixed(1)}%)`:"";
+
+  updateGoals(total);
+}
+
+function updateGoals(total){
+  let text="";
+  if(total<1000) text=`Progress to €1000: ${Math.round(total/1000*100)}%`;
+  else if(total<5000) text="Starter Investor";
+  else text="Advanced Collector";
+
+  document.getElementById("goal").innerText=text;
+}
+
+function buy(i){
+  const c=collection[i];
+  c.qty++;
+  c.purchase=((c.purchase*(c.qty-1))+c.current)/c.qty;
+  save();render();
+}
+
+function sell(i){
+  const c=collection[i];
+  c.qty--;
+  if(c.qty<=0) collection.splice(i,1);
+  save();render();
+}
+
+function openSelector(){
+  document.getElementById("selector").style.display="block";
+  renderSelector(db);
+}
+function filterCards(q){
+  renderSelector(db.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())));
+}
+function renderSelector(list){
+  const wrap=document.getElementById("cardList");
+  wrap.innerHTML="";
+  list.forEach(c=>{
+    const el=document.createElement("div");
+    el.className="selector-item";
+    el.innerHTML=`<img src="${c.img}"><div>${c.name}</div>`;
+    el.onclick=()=>{
+      addCard(c);
+      document.getElementById("selector").style.display="none";
+    };
+    wrap.appendChild(el);
+  });
+}
+
+load();
+render();
+updateMarket();
+</script>
+
+</body>
+</html>
