@@ -22,11 +22,11 @@ body{
 .app{
   max-width:600px;
   margin:auto;
-  padding:16px 16px 100px;
+  padding:16px 16px 120px;
 }
 
-.page{display:none}
-.page.active{display:block}
+.page{display:none;opacity:0;transition:.25s}
+.page.active{display:block;opacity:1}
 
 /* FEATURED */
 .featured{
@@ -36,7 +36,6 @@ body{
   box-shadow:0 15px 40px rgba(0,0,0,0.6);
   margin-bottom:18px;
 }
-.featured h2{margin:0}
 .featured .value{font-size:36px;font-weight:800;margin-top:10px}
 
 /* GRID */
@@ -52,23 +51,11 @@ body{
   padding:14px;
   background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
   box-shadow:0 10px 30px rgba(0,0,0,0.6);
-  transition:.25s;
 }
-.card:hover{transform:scale(1.03)}
-
 .card img{
   width:100%;
   border-radius:12px;
   margin-bottom:8px;
-}
-
-.name{font-weight:700}
-.price{font-size:18px;font-weight:700;margin-top:4px}
-
-.actions{
-  display:flex;
-  gap:6px;
-  margin-top:6px;
 }
 
 button{
@@ -76,7 +63,6 @@ button{
   padding:6px 8px;
   border-radius:8px;
   font-size:12px;
-  cursor:pointer;
 }
 
 .buy{
@@ -97,14 +83,14 @@ button{
   background:#081426;
   display:flex;
   justify-content:space-around;
-  padding:10px 0;
+  padding:12px 0;
+  z-index:10;
 }
-.nav div{text-align:center;color:#9aa4b2;cursor:pointer}
 
-/* FAB */
+/* FAB FIXED */
 .fab{
   position:fixed;
-  bottom:35px;
+  bottom:70px;
   left:50%;
   transform:translateX(-50%);
   width:64px;height:64px;
@@ -115,48 +101,44 @@ button{
   justify-content:center;
   font-size:28px;
   color:#042022;
+  z-index:11;
 }
-
-/* SELECTOR */
-.selector{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  background:#081426;
-  padding:16px;
-  display:none;
-  max-height:70%;
-  overflow:auto;
-}
-
-.selector-item{
-  display:flex;
-  gap:10px;
-  padding:10px;
-}
-.selector img{width:50px;border-radius:8px}
 
 /* SEARCH */
 .search input{
   width:100%;
-  padding:10px;
+  padding:12px;
   border-radius:10px;
   border:none;
   margin-bottom:10px;
 }
 
-/* EMPTY */
-.empty{
-  text-align:center;
-  padding:40px;
-  color:var(--muted);
+/* LOADING */
+.loading{text-align:center;color:var(--muted);padding:10px}
+
+/* SELECTOR */
+.selector{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.7);
+  display:none;
+}
+.selector-content{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#081426;
+  padding:16px;
+  max-height:70%;
+  overflow:auto;
+  border-radius:20px 20px 0 0;
 }
 
 /* TOAST */
 .toast{
   position:fixed;
-  bottom:90px;
+  bottom:120px;
   left:50%;
   transform:translateX(-50%);
   background:#0b1220;
@@ -173,7 +155,7 @@ button{
 <!-- HOME -->
 <div id="homePage" class="page active">
   <div class="featured">
-    <h2 id="featuredName">—</h2>
+    <div id="featuredName">—</div>
     <div class="value" id="featuredValue">€0</div>
   </div>
   <div id="homeGrid" class="grid"></div>
@@ -186,8 +168,9 @@ button{
 
 <!-- SEARCH -->
 <div id="searchPage" class="page search">
-  <input placeholder="Search cards..." oninput="searchCards(this.value)">
+  <input placeholder="Search Pokémon cards..." oninput="handleSearch(this.value)">
   <div id="searchResults"></div>
+  <div id="loadMoreWrap"></div>
 </div>
 
 </div>
@@ -200,49 +183,26 @@ button{
   <div onclick="goPage('search')">🔍<br>Search</div>
 </div>
 
-<div id="selector" class="selector">
-  <input placeholder="Search..." oninput="searchSelector(this.value)">
-  <div id="cardList"></div>
+<!-- SELECTOR -->
+<div id="selector" class="selector" onclick="closeSelector(event)">
+  <div class="selector-content" onclick="event.stopPropagation()">
+    <input placeholder="Search..." oninput="handleSearch(this.value)">
+    <div id="cardList"></div>
+  </div>
 </div>
 
 <script>
 const KEY="carddex";
 let collection=[];
-let db=[];
+
+/* SEARCH STATE */
+let currentPage=1;
+let currentQuery="";
+let loading=false;
 
 /* STORAGE */
 function save(){localStorage.setItem(KEY,JSON.stringify(collection))}
 function load(){const d=localStorage.getItem(KEY);if(d)collection=JSON.parse(d)}
-
-/* FETCH REAL API */
-async function loadCards(){
-  const res=await fetch("https://api.pokemontcg.io/v2/cards?pageSize=50");
-  const data=await res.json();
-
-  db=data.data.map(c=>({
-    id:c.id,
-    name:c.name,
-    set:c.set?.name || "Unknown",
-    rarity:c.rarity || "Common",
-    img:c.images?.small,
-    value:getPrice(c)
-  }));
-
-  render();
-}
-
-/* PRICE */
-function getPrice(card){
-  if(card.tcgplayer?.prices){
-    const p=Object.values(card.tcgplayer.prices)[0];
-    if(p?.market) return Math.round(p.market);
-  }
-  if(card.rarity?.includes("Secret")) return rand(200,800);
-  if(card.rarity?.includes("Ultra")) return rand(80,300);
-  if(card.rarity?.includes("Rare")) return rand(20,100);
-  return rand(5,30);
-}
-function rand(a,b){return Math.floor(Math.random()*(b-a)+a)}
 
 /* NAV */
 function goPage(p){
@@ -264,7 +224,6 @@ function removeCard(i){
   if(!confirm("Remove this card?")) return;
   collection.splice(i,1);
   save();render();
-  toast("Removed");
 }
 
 /* DECREASE */
@@ -272,6 +231,15 @@ function decrease(i){
   collection[i].qty--;
   if(collection[i].qty<=0) collection.splice(i,1);
   save();render();
+}
+
+/* PRICE */
+function getPrice(c){
+  if(c.tcgplayer?.prices){
+    const p=Object.values(c.tcgplayer.prices)[0];
+    if(p?.market) return Math.round(p.market);
+  }
+  return Math.floor(Math.random()*100)+20;
 }
 
 /* RENDER */
@@ -286,73 +254,104 @@ function render(){
   }
 
   collection.forEach(c=>{
-    const el=document.createElement("div");
-    el.className="card";
-    el.innerHTML=`
-      <img src="${c.img}">
-      <div class="name">${c.name}</div>
-      <div class="price">€${c.value}</div>
-    `;
-    home.appendChild(el);
+    home.innerHTML+=`
+      <div class="card">
+        <img src="${c.img}">
+        ${c.name}<br>€${c.value}
+      </div>`;
   });
 
   const col=document.getElementById("collectionGrid");
-  col.innerHTML=collection.length? "" : "<div class='empty'>No cards yet</div>";
+  col.innerHTML="";
 
   collection.forEach((c,i)=>{
-    const el=document.createElement("div");
-    el.className="card";
-    el.innerHTML=`
-      <img src="${c.img}">
-      <div class="name">${c.name}</div>
-      <div class="price">€${c.value} x${c.qty}</div>
-      <div class="actions">
-        <button class="buy" onclick="addCard(db.find(x=>x.id==='${c.id}'))">+</button>
+    col.innerHTML+=`
+      <div class="card">
+        <img src="${c.img}">
+        ${c.name}<br>€${c.value} x${c.qty}<br>
+        <button class="buy" onclick="addCard(collection[${i}])">+</button>
         <button onclick="decrease(${i})">-</button>
         <button class="sell" onclick="removeCard(${i})">Delete</button>
-      </div>
-    `;
-    col.appendChild(el);
+      </div>`;
   });
 }
 
-/* SEARCH */
-function searchCards(q){
-  const results=db.filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
+/* ================= SEARCH API ================= */
+
+let debounceTimer;
+
+function handleSearch(q){
+  clearTimeout(debounceTimer);
+  debounceTimer=setTimeout(()=>{
+    currentQuery=q;
+    currentPage=1;
+    fetchCards(true);
+  },400);
+}
+
+async function fetchCards(reset=false){
+  if(!currentQuery) return;
+  if(loading) return;
+
+  loading=true;
+
   const wrap=document.getElementById("searchResults");
-  wrap.innerHTML="";
-  results.forEach(c=>{
-    const el=document.createElement("div");
-    el.className="card";
-    el.innerHTML=`
-      <img src="${c.img}">
-      ${c.name}<br>${c.set}<br>€${c.value}
-      <button class="buy" onclick='addCard(${JSON.stringify(c)})'>Add</button>
-    `;
-    wrap.appendChild(el);
-  });
+  if(reset) wrap.innerHTML="<div class='loading'>Loading...</div>";
+
+  try{
+    const res=await fetch(`https://api.pokemontcg.io/v2/cards?q=name:${currentQuery}&pageSize=50&page=${currentPage}`);
+    const data=await res.json();
+
+    if(reset) wrap.innerHTML="";
+
+    data.data.forEach(c=>{
+      const price=getPrice(c);
+      const el=document.createElement("div");
+      el.className="card";
+      el.innerHTML=`
+        <img src="${c.images.small}">
+        ${c.name}<br>${c.set.name}<br>${c.rarity||""}<br>€${price}
+        <button class="buy">Add</button>
+      `;
+      el.querySelector("button").onclick=()=>addCard({
+        id:c.id,
+        name:c.name,
+        img:c.images.small,
+        value:price
+      });
+      wrap.appendChild(el);
+    });
+
+    renderLoadMore();
+
+  }catch(e){
+    wrap.innerHTML="<div class='loading'>Error loading cards</div>";
+  }
+
+  loading=false;
+}
+
+/* PAGINATION */
+function renderLoadMore(){
+  const wrap=document.getElementById("loadMoreWrap");
+  wrap.innerHTML=`
+    <button onclick="loadMore()">Load more</button>
+  `;
+}
+
+function loadMore(){
+  currentPage++;
+  fetchCards();
 }
 
 /* SELECTOR */
 function openSelector(){
-  selector.style.display="block";
-  renderSelector(db);
+  document.getElementById("selector").style.display="block";
 }
-function searchSelector(q){
-  renderSelector(db.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())));
-}
-function renderSelector(list){
-  cardList.innerHTML="";
-  list.forEach(c=>{
-    const el=document.createElement("div");
-    el.className="selector-item";
-    el.innerHTML=`<img src="${c.img}"><div>${c.name}<br>€${c.value}</div>`;
-    el.onclick=()=>{
-      addCard(c);
-      selector.style.display="none";
-    };
-    cardList.appendChild(el);
-  });
+function closeSelector(e){
+  if(e.target.id==="selector"){
+    document.getElementById("selector").style.display="none";
+  }
 }
 
 /* TOAST */
@@ -366,7 +365,7 @@ function toast(msg){
 
 /* INIT */
 load();
-loadCards();
+render();
 </script>
 
 </body>
