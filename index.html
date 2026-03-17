@@ -25,7 +25,6 @@ body{
   padding:16px 16px 100px;
 }
 
-/* PAGES */
 .page{display:none}
 .page.active{display:block}
 
@@ -37,7 +36,7 @@ body{
   box-shadow:0 15px 40px rgba(0,0,0,0.6);
   margin-bottom:18px;
 }
-.featured h2{margin:0;font-size:22px}
+.featured h2{margin:0}
 .featured .value{font-size:36px;font-weight:800;margin-top:10px}
 
 /* GRID */
@@ -116,7 +115,6 @@ button{
   justify-content:center;
   font-size:28px;
   color:#042022;
-  box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
 
 /* SELECTOR */
@@ -130,22 +128,14 @@ button{
   display:none;
   max-height:70%;
   overflow:auto;
-  border-top-left-radius:20px;
-  border-top-right-radius:20px;
 }
 
 .selector-item{
   display:flex;
   gap:10px;
   padding:10px;
-  border-radius:12px;
 }
-.selector-item:hover{background:rgba(255,255,255,0.05)}
-
-.selector img{
-  width:50px;
-  border-radius:8px;
-}
+.selector img{width:50px;border-radius:8px}
 
 /* SEARCH */
 .search input{
@@ -218,16 +208,41 @@ button{
 <script>
 const KEY="carddex";
 let collection=[];
+let db=[];
 
+/* STORAGE */
 function save(){localStorage.setItem(KEY,JSON.stringify(collection))}
 function load(){const d=localStorage.getItem(KEY);if(d)collection=JSON.parse(d)}
 
-/* DATABASE */
-const db = Array.from({length:50},(_,i)=>({
-  name:"Pokemon "+(i+1),
-  value:Math.floor(Math.random()*500)+50,
-  img:`https://images.pokemontcg.io/base${(i%10)+1}/${i+1}.png`
-}));
+/* FETCH REAL API */
+async function loadCards(){
+  const res=await fetch("https://api.pokemontcg.io/v2/cards?pageSize=50");
+  const data=await res.json();
+
+  db=data.data.map(c=>({
+    id:c.id,
+    name:c.name,
+    set:c.set?.name || "Unknown",
+    rarity:c.rarity || "Common",
+    img:c.images?.small,
+    value:getPrice(c)
+  }));
+
+  render();
+}
+
+/* PRICE */
+function getPrice(card){
+  if(card.tcgplayer?.prices){
+    const p=Object.values(card.tcgplayer.prices)[0];
+    if(p?.market) return Math.round(p.market);
+  }
+  if(card.rarity?.includes("Secret")) return rand(200,800);
+  if(card.rarity?.includes("Ultra")) return rand(80,300);
+  if(card.rarity?.includes("Rare")) return rand(20,100);
+  return rand(5,30);
+}
+function rand(a,b){return Math.floor(Math.random()*(b-a)+a)}
 
 /* NAV */
 function goPage(p){
@@ -237,7 +252,7 @@ function goPage(p){
 
 /* ADD */
 function addCard(c){
-  const ex=collection.find(x=>x.name===c.name);
+  const ex=collection.find(x=>x.id===c.id);
   if(ex) ex.qty++;
   else collection.push({...c,qty:1});
   save();render();
@@ -261,14 +276,13 @@ function decrease(i){
 
 /* RENDER */
 function render(){
-
   const home=document.getElementById("homeGrid");
   home.innerHTML="";
 
   if(collection.length){
     const top=[...collection].sort((a,b)=>b.value-a.value)[0];
-    document.getElementById("featuredName").innerText=top.name;
-    document.getElementById("featuredValue").innerText="€"+top.value;
+    featuredName.innerText=top.name;
+    featuredValue.innerText="€"+top.value;
   }
 
   collection.forEach(c=>{
@@ -283,11 +297,7 @@ function render(){
   });
 
   const col=document.getElementById("collectionGrid");
-  col.innerHTML="";
-
-  if(!collection.length){
-    col.innerHTML=`<div class="empty">No cards yet</div>`;
-  }
+  col.innerHTML=collection.length? "" : "<div class='empty'>No cards yet</div>";
 
   collection.forEach((c,i)=>{
     const el=document.createElement("div");
@@ -297,7 +307,7 @@ function render(){
       <div class="name">${c.name}</div>
       <div class="price">€${c.value} x${c.qty}</div>
       <div class="actions">
-        <button class="buy" onclick="addCard(db.find(x=>x.name==='${c.name}'))">+</button>
+        <button class="buy" onclick="addCard(db.find(x=>x.id==='${c.id}'))">+</button>
         <button onclick="decrease(${i})">-</button>
         <button class="sell" onclick="removeCard(${i})">Delete</button>
       </div>
@@ -316,7 +326,7 @@ function searchCards(q){
     el.className="card";
     el.innerHTML=`
       <img src="${c.img}">
-      ${c.name} €${c.value}
+      ${c.name}<br>${c.set}<br>€${c.value}
       <button class="buy" onclick='addCard(${JSON.stringify(c)})'>Add</button>
     `;
     wrap.appendChild(el);
@@ -325,24 +335,23 @@ function searchCards(q){
 
 /* SELECTOR */
 function openSelector(){
-  document.getElementById("selector").style.display="block";
+  selector.style.display="block";
   renderSelector(db);
 }
 function searchSelector(q){
   renderSelector(db.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())));
 }
 function renderSelector(list){
-  const wrap=document.getElementById("cardList");
-  wrap.innerHTML="";
+  cardList.innerHTML="";
   list.forEach(c=>{
     const el=document.createElement("div");
     el.className="selector-item";
-    el.innerHTML=`<img src="${c.img}"><div>${c.name}</div>`;
+    el.innerHTML=`<img src="${c.img}"><div>${c.name}<br>€${c.value}</div>`;
     el.onclick=()=>{
       addCard(c);
-      document.getElementById("selector").style.display="none";
+      selector.style.display="none";
     };
-    wrap.appendChild(el);
+    cardList.appendChild(el);
   });
 }
 
@@ -355,8 +364,9 @@ function toast(msg){
   setTimeout(()=>t.remove(),1500);
 }
 
+/* INIT */
 load();
-render();
+loadCards();
 </script>
 
 </body>
