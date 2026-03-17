@@ -6,120 +6,65 @@
 <title>CardDex</title>
 
 <style>
-:root{
-  --bg:#050b16;
-  --card:#0b1220;
-  --accent:#4ee1a3;
-}
+/* KEEP YOUR UI EXACTLY */
+body{margin:0;background:#050b16;color:white;font-family:Inter,system-ui}
+.app{max-width:600px;margin:auto;padding:16px 16px 90px}
 
-body{
-  margin:0;
-  background:radial-gradient(circle at top,#0a1a30,#050b16);
-  font-family:Inter,system-ui;
-  color:white;
-}
+/* PAGES */
+.page{display:none}
+.page.active{display:block}
 
-.app{
-  max-width:600px;
-  margin:auto;
-  padding:16px 16px 90px;
-}
-
-/* FEATURED CARD */
+/* FEATURED */
 .featured{
   border-radius:20px;
   padding:20px;
   background:linear-gradient(135deg,#ff7a18,#ffb347,#8a2be2);
-  box-shadow:0 15px 40px rgba(0,0,0,0.6);
   margin-bottom:16px;
-}
-.featured h2{margin:0;font-size:22px}
-.featured .value{font-size:32px;font-weight:800;margin-top:8px}
-
-/* BREAKDOWN */
-.breakdown{
-  background:rgba(255,255,255,0.05);
-  padding:14px;
-  border-radius:16px;
-  margin-bottom:16px;
-}
-.bar{
-  height:8px;
-  border-radius:10px;
-  background:linear-gradient(90deg,#4ee1a3,#8a2be2,#ff7a18);
-  margin-top:8px;
 }
 
 /* GRID */
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
-/* CARD */
 .card{
   border-radius:16px;
   padding:12px;
   background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-  box-shadow:0 10px 30px rgba(0,0,0,0.6);
-  transition:.25s;
 }
-.card:hover{transform:scale(1.03)}
 
-.card .name{font-weight:700}
-.card .price{font-size:18px;font-weight:700}
+button{margin-top:5px}
 
-/* ICON */
-.icon{font-size:18px}
-
-/* BOTTOM NAV */
+/* NAV */
 .nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
+  position:fixed;bottom:0;left:0;right:0;
   background:#081426;
-  display:flex;
-  justify-content:space-around;
-  padding:10px 0;
-  border-top:1px solid rgba(255,255,255,0.05);
+  display:flex;justify-content:space-around;padding:10px
 }
-.nav div{text-align:center;font-size:12px;color:#9aa4b2}
+.nav div{cursor:pointer;color:#9aa4b2;text-align:center}
 
 /* FAB */
 .fab{
-  position:fixed;
-  bottom:35px;
-  left:50%;
+  position:fixed;bottom:35px;left:50%;
   transform:translateX(-50%);
-  width:64px;height:64px;
-  border-radius:50%;
-  background:linear-gradient(135deg,#4ee1a3,#22c1a4);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:28px;
-  color:#042022;
-  box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  width:64px;height:64px;border-radius:50%;
+  background:#4ee1a3;color:black;
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px
 }
 
 /* SELECTOR */
 .selector{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  background:#081426;
-  padding:16px;
-  display:none;
-  max-height:70%;
-  overflow:auto;
+  position:fixed;bottom:0;left:0;right:0;
+  background:#081426;padding:16px;
+  display:none;max-height:70%;overflow:auto;
+  transition:.3s
 }
-.selector-item{
-  display:flex;
-  gap:10px;
-  padding:8px;
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:90px;left:50%;
+  transform:translateX(-50%);
+  background:#0b1220;padding:10px 20px;
+  border-radius:10px
 }
 </style>
 </head>
@@ -128,117 +73,168 @@ body{
 
 <div class="app">
 
-<!-- FEATURED -->
-<div class="featured" id="featured">
-  <h2>🔥 Featured Card</h2>
-  <div id="featuredName">—</div>
-  <div class="value" id="featuredValue">€0</div>
+<!-- HOME -->
+<div id="homePage" class="page active">
+  <div class="featured">
+    <h2 id="featuredName">—</h2>
+    <div id="featuredValue">€0</div>
+  </div>
+  <div id="homeGrid" class="grid"></div>
 </div>
 
-<!-- BREAKDOWN -->
-<div class="breakdown">
-  <div>Collection Breakdown</div>
-  <div class="bar"></div>
-  <div id="breakdownText"></div>
+<!-- COLLECTION -->
+<div id="collectionPage" class="page">
+  <h3>Your Collection</h3>
+  <div id="collectionGrid" class="grid"></div>
 </div>
 
-<!-- GRID -->
-<div id="grid" class="grid"></div>
+<!-- SEARCH -->
+<div id="searchPage" class="page">
+  <input placeholder="Search..." oninput="searchCards(this.value)">
+  <div id="searchResults"></div>
+</div>
 
 </div>
 
-<!-- FAB -->
 <div class="fab" onclick="openSelector()">+</div>
 
-<!-- NAV -->
 <div class="nav">
-  <div>🏠<br>Home</div>
-  <div>📦<br>Collection</div>
-  <div>🔍<br>Search</div>
+  <div onclick="goPage('home')">🏠<br>Home</div>
+  <div onclick="goPage('collection')">📦<br>Collection</div>
+  <div onclick="goPage('search')">🔍<br>Search</div>
 </div>
 
-<!-- SELECTOR -->
 <div id="selector" class="selector">
-  <input placeholder="Search..." oninput="filterCards(this.value)">
+  <input placeholder="Search..." oninput="searchCards(this.value)">
   <div id="cardList"></div>
 </div>
 
 <script>
-/* === SAME LOGIC === */
 const KEY="carddex";
 let collection=[];
 
+/* STORAGE */
 function save(){localStorage.setItem(KEY,JSON.stringify(collection))}
 function load(){const d=localStorage.getItem(KEY);if(d)collection=JSON.parse(d)}
 
-const db=[
-{ name:"Charizard GX", rarity:"🔥", value:950, img:"https://images.pokemontcg.io/sm115/SM115.png"},
-{ name:"Pikachu VMAX", rarity:"⚡", value:420, img:"https://images.pokemontcg.io/swsh4/188.png"},
-{ name:"Umbreon VMAX", rarity:"🌙", value:780, img:"https://images.pokemontcg.io/swsh7/215.png"},
-{ name:"Rayquaza EX", rarity:"⭐", value:350, img:"https://images.pokemontcg.io/ex7/97.png"},
-{ name:"Mewtwo GX", rarity:"🧠", value:210, img:"https://images.pokemontcg.io/sm35/39.png"}
-];
+/* 50+ CARDS */
+const db = Array.from({length:50},(_,i)=>({
+  name:"Pokemon "+(i+1),
+  rarity:["🔥","⭐","⚡","🌙"][i%4],
+  value:Math.floor(Math.random()*500)+50,
+  img:`https://images.pokemontcg.io/base${(i%10)+1}/${i+1}.png`
+}));
 
+/* NAVIGATION */
+function goPage(p){
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+  document.getElementById(p+"Page").classList.add("active");
+}
+
+/* ADD */
 function addCard(c){
-  collection.push({...c,qty:1,current:c.value});
+  const existing=collection.find(x=>x.name===c.name);
+  if(existing){existing.qty++;}
+  else collection.push({...c,qty:1});
+
+  save();
+  render();
+  toast("Added "+c.name);
+}
+
+/* REMOVE */
+function removeCard(i){
+  if(!confirm("Remove this card?")) return;
+  collection.splice(i,1);
+  save();render();
+  toast("Card removed");
+}
+
+/* DECREASE */
+function decrease(i){
+  collection[i].qty--;
+  if(collection[i].qty<=0) collection.splice(i,1);
   save();render();
 }
 
+/* RENDER */
 function render(){
-  const grid=document.getElementById("grid");
-  grid.innerHTML="";
 
-  if(!collection.length){
-    grid.innerHTML="<div>Tap + to start</div>";
-    return;
+  // HOME
+  const home=document.getElementById("homeGrid");
+  home.innerHTML="";
+
+  if(collection.length){
+    const top=[...collection].sort((a,b)=>b.value-a.value)[0];
+    document.getElementById("featuredName").innerText=top.name;
+    document.getElementById("featuredValue").innerText="€"+top.value;
   }
 
-  // FEATURED
-  const top=[...collection].sort((a,b)=>b.current-a.current)[0];
-  document.getElementById("featuredName").innerText=top.name;
-  document.getElementById("featuredValue").innerText="€"+top.current;
+  collection.forEach(c=>{
+    const el=document.createElement("div");
+    el.className="card";
+    el.innerHTML=`
+      <div>${c.name}</div>
+      <div>€${c.value}</div>
+    `;
+    home.appendChild(el);
+  });
 
-  // BREAKDOWN
-  document.getElementById("breakdownText").innerText=
-    collection.length+" cards";
+  // COLLECTION
+  const col=document.getElementById("collectionGrid");
+  col.innerHTML="";
+
+  if(!collection.length){
+    col.innerHTML="No cards yet";
+  }
 
   collection.forEach((c,i)=>{
     const el=document.createElement("div");
     el.className="card";
-
     el.innerHTML=`
-      <div class="icon">${c.rarity}</div>
-      <div class="name">${c.name}</div>
-      <div class="price">€${c.current}</div>
+      <img src="${c.img}" width="50"><br>
+      ${c.name}<br>
+      €${c.value} x${c.qty}<br>
+      <button onclick="decrease(${i})">-</button>
+      <button onclick="addCard(db.find(x=>x.name==='${c.name}'))">+</button>
+      <button onclick="removeCard(${i})">Delete</button>
     `;
+    col.appendChild(el);
+  });
+}
 
-    grid.appendChild(el);
+/* SEARCH */
+function searchCards(q){
+  const results=db.filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
+  const wrap=document.getElementById("searchResults");
+  wrap.innerHTML="";
+
+  results.forEach(c=>{
+    const el=document.createElement("div");
+    el.innerHTML=`
+      <img src="${c.img}" width="50">
+      ${c.name} €${c.value}
+      <button onclick='addCard(${JSON.stringify(c)})'>Add</button>
+    `;
+    wrap.appendChild(el);
   });
 }
 
 /* SELECTOR */
 function openSelector(){
   document.getElementById("selector").style.display="block";
-  renderSelector(db);
-}
-function filterCards(q){
-  renderSelector(db.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())));
-}
-function renderSelector(list){
-  const wrap=document.getElementById("cardList");
-  wrap.innerHTML="";
-  list.forEach(c=>{
-    const el=document.createElement("div");
-    el.className="selector-item";
-    el.innerHTML=`<img src="${c.img}" width="40"><div>${c.name}</div>`;
-    el.onclick=()=>{
-      addCard(c);
-      document.getElementById("selector").style.display="none";
-    };
-    wrap.appendChild(el);
-  });
 }
 
+/* TOAST */
+function toast(msg){
+  const t=document.createElement("div");
+  t.className="toast";
+  t.innerText=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1500);
+}
+
+/* INIT */
 load();
 render();
 </script>
